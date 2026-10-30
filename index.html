@@ -1,0 +1,184 @@
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+/* Base reset (the artifact host supplied this; GitHub Pages does not) */
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px system-ui,sans-serif}
+[hidden]{display:none!important}
+</style>
+<title>AI Word Cloud</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dark orbital stage. A slowly turning violet ring and drifting stars sit behind the word cloud; a glass card opens beside any word you hover or tap. */
+:root{
+  --bg:#f3f0ff; --fg:#1b1740; --muted:#5b5590; --line:rgba(80,60,190,.22);
+  --glow-rgb:106,76,240; --glow2-rgb:150,120,255; --star-rgb:70,50,170; --spark-rgb:224,80,80;
+  --stage-a:#ffffff; --stage-b:#ece7ff; --stage-c:#ddd5ff;
+  --panel:rgba(255,255,255,.86); --link:#4a2fd0; --grid:rgba(80,60,190,.07);
+  --w1:#2a1a8a; --w2:#4a2fd0; --w3:#6a4cf0; --w4:#7a66c8; --w5:#6d6896;
+  --card:#3a2a9c; --card-fg:#f4f1ff; --card-muted:#c4bdf0; --card-link:#d6cbff; --card-line:rgba(205,190,255,.45);
+  --display:'Hanken Grotesk','Helvetica Neue',Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#07061a; --fg:#ece9ff; --muted:#a29dcf; --line:rgba(160,140,255,.24);
+  --glow-rgb:124,92,255; --glow2-rgb:190,170,255; --star-rgb:225,220,255; --spark-rgb:255,110,110;
+  --stage-a:#1a1048; --stage-b:#0b0928; --stage-c:#06051a;
+  --panel:rgba(20,15,56,.78); --link:#b9a6ff; --grid:rgba(160,140,255,.06);
+  --w1:#f6f3ff; --w2:#ddd3ff; --w3:#bba8ff; --w4:#9d88f2; --w5:#8f89bd; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#07061a; --fg:#ece9ff; --muted:#a29dcf; --line:rgba(160,140,255,.24);
+  --glow-rgb:124,92,255; --glow2-rgb:190,170,255; --star-rgb:225,220,255; --spark-rgb:255,110,110;
+  --stage-a:#1a1048; --stage-b:#0b0928; --stage-c:#06051a;
+  --panel:rgba(20,15,56,.78); --link:#b9a6ff; --grid:rgba(160,140,255,.06);
+  --w1:#f6f3ff; --w2:#ddd3ff; --w3:#bba8ff; --w4:#9d88f2; --w5:#8f89bd; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);
+  padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font-weight:300;font-size:clamp(26px,4.2vw,42px);line-height:1.1;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.sub{margin:0;color:var(--muted);font-size:14px;line-height:1.5;max-width:80ch}
+#wrap{position:relative;border:1px solid var(--line);border-radius:14px;
+  background:radial-gradient(ellipse at 50% 46%,var(--stage-a) 0%,var(--stage-b) 55%,var(--stage-c) 100%)}
+#wrap::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:56px 56px;
+  -webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%);mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%)}
+#fx{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;display:block}
+#field{position:relative;z-index:2;width:100%;height:600px;overflow:hidden;border-radius:inherit}
+#field span{position:absolute;white-space:nowrap;font-family:var(--display);line-height:1;cursor:pointer;letter-spacing:-.01em;
+  transition:color .2s,text-shadow .2s;
+  animation:rise .9s cubic-bezier(.2,.7,.2,1) backwards,drift var(--dur,8s) ease-in-out var(--del,0s) infinite alternate}
+#field span:hover,#field span:focus-visible{color:var(--fg)!important;text-shadow:0 0 22px rgba(var(--glow2-rgb),.9),0 0 3px rgba(var(--glow2-rgb),.8);outline:none}
+@keyframes rise{from{opacity:0;filter:blur(8px)}to{opacity:1;filter:blur(0)}}
+@keyframes drift{from{transform:translate3d(0,-4px,0)}to{transform:translate3d(0,4px,0)}}
+#pop{position:absolute;z-index:5;box-sizing:border-box;width:min(350px,calc(100% - 16px));padding:16px 18px;border-radius:12px;
+  background:var(--card);color:var(--card-fg);border:1px solid var(--card-line);
+  box-shadow:0 0 0 1px rgba(var(--glow-rgb),.25),0 18px 50px rgba(20,10,80,.55);
+  font-size:14px;line-height:1.6;animation:pop .18s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+#pop[hidden]{display:none}
+#pop b{display:block;font-weight:300;font-size:24px;letter-spacing:-.015em;margin-bottom:4px}
+#pop .cnt{display:block;margin-top:10px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--card-muted)}
+#pop .lnk{display:block;margin-top:12px;padding-top:12px;border-top:1px solid var(--card-line);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--card-muted)}
+#pop a{display:block;margin-top:8px;font-family:var(--display);font-size:13px;letter-spacing:0;text-transform:none;line-height:1.45;color:var(--card-link);text-decoration:none;border-bottom:1px solid transparent}
+#pop a:hover,#pop a:focus-visible{border-bottom-color:currentColor;outline:none}
+#pop a::after{content:" \2197"}
+#tip{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);min-height:1.4em}
+.note{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.7;max-width:84ch;border-top:1px solid var(--line);padding-top:16px;margin:0}
+@media (max-width:560px){#field{height:600px}#pop{padding:14px 16px}}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">AI news terms &middot; 12&ndash;25 Oct 2026 &middot; 39 articles</p>
+  <h1>What AI news is talking about</h1>
+  <p class="sub">The 15 AI terms in the most articles. Hover or tap a word for its meaning and two articles to read.</p>
+  <div id="wrap">
+    <canvas id="fx" aria-hidden="true"></canvas>
+    <div id="field" role="group" aria-label="Word cloud of the most used words in recent AI news"></div>
+    <div id="pop" role="dialog" hidden></div>
+  </div>
+  <div id="tip">Hover or tap a word to see what it means in AI</div>
+  <p class="note">Top 15 AI terms from the full text of 39 articles published 12–25 October 2026: 16 from VentureBeat, 8 from TechCrunch, 3 from MIT Technology Review, 3 from TechRadar, and 9 from AI Business, Security Magazine, Windows Central, AI Chief, remio.ai, Forklog, Interesting Engineering, a developer blog and Martin Fowler's essay.</p>
+</main>
+<script>
+var DEFS = {"agents": "AI systems that don't just answer a question but take actions toward a goal: browsing, calling software, writing code, and deciding the next step on their own.", "tokens": "The small chunks of text (roughly three-quarters of a word) that models read and write. AI is priced and limited by tokens, so token counts drive cost.", "agentic": "Describes AI that works autonomously across several steps, planning, using tools and correcting itself, instead of replying once to a single prompt.", "benchmarks": "Standardised tests used to score and compare models, for example on coding, reasoning or computer use. Vendors cite them to claim one model beats another.", "frontier models": "The most capable, newest models from the leading labs. They set the state of the art and usually cost the most to run.", "inference": "Running a trained model to get an answer, as opposed to training it. Most day-to-day AI cost and hardware demand comes from inference.", "open weights": "A model whose trained parameters are released so anyone can download, run and fine-tune it. It is not always fully open source, since training data and code may stay private.", "reasoning": "When a model works through a problem step by step, often spending extra compute to think before answering. It helps on maths, code and multi-step tasks.", "model weights": "The learned numbers inside a model that encode what it knows. Releasing, protecting or swapping weights is central to debates on openness and security.", "tool calls": "When a model asks external software to do something, such as search the web, query a database or run code, then uses the result in its answer.", "evals": "Short for evaluations: tests that check how well a model or agent performs and behaves, run before and after release to catch regressions and risks.", "parameters": "The adjustable numbers in a neural network. Parameter count (for example 30B) is a rough measure of a model's size and capacity.", "prompt caching": "Reusing the already-processed start of a prompt, such as instructions or documents, so repeat requests are faster and much cheaper. Related to KV caching.", "harness": "The scaffolding around a model that makes it an agent: prompts, tools, memory, permissions and control loops. Two harnesses can make the same model perform very differently.", "fine-tuning": "Further training a pre-trained model on specific data to specialise it for a task, tone or domain without building a model from scratch."};
+var LINKS = {"agents": [{"t": "MIT Technology Review: Making the internet better for AI agents might make it worse for everyone else", "u": "https://www.technologyreview.com/2026/10/19/1147186/making-the-internet-better-for-ai-agents-might-make-it-worse-for-everyone-else/"}, {"t": "TechCrunch: 1Password launches a way for AI agents to log in on your behalf", "u": "https://techcrunch.com/?p=3180727"}], "tokens": [{"t": "TechCrunch: Recursive launches Flint, a laptop coding model it says was largely built by AI", "u": "https://techcrunch.com/?p=3180324"}, {"t": "TechCrunch: Meta releases its first frontier model, Muse Wonder", "u": "https://techcrunch.com/2026/10/12/meta-releases-its-first-frontier-model-muse-wonder"}], "agentic": [{"t": "MIT Technology Review: Making the internet better for AI agents might make it worse for everyone else", "u": "https://www.technologyreview.com/2026/10/19/1147186/making-the-internet-better-for-ai-agents-might-make-it-worse-for-everyone-else/"}, {"t": "TechCrunch: 1Password launches a way for AI agents to log in on your behalf", "u": "https://techcrunch.com/?p=3180727"}], "benchmarks": [{"t": "TechCrunch: Meta releases its first frontier model, Muse Wonder", "u": "https://techcrunch.com/2026/10/12/meta-releases-its-first-frontier-model-muse-wonder"}, {"t": "TechCrunch: Recursive launches Flint, a laptop coding model it says was largely built by AI", "u": "https://techcrunch.com/?p=3180324"}], "frontier models": [{"t": "TechCrunch: Meta releases its first frontier model, Muse Wonder", "u": "https://techcrunch.com/2026/10/12/meta-releases-its-first-frontier-model-muse-wonder"}, {"t": "TechCrunch: Hackers hit AI coding tool OpenCode, running up charges on users' AI accounts", "u": "https://techcrunch.com/2026/10/19/hackers-hit-ai-coding-tool-opencode-running-up-charges-on-users-ai-accounts/"}], "inference": [{"t": "TechCrunch: Amazon is taking its biggest shot at Nvidia yet with new TorchNeuron dev tool", "u": "https://techcrunch.com/?p=3179099"}, {"t": "TechCrunch: Recursive launches Flint, a laptop coding model it says was largely built by AI", "u": "https://techcrunch.com/?p=3180324"}], "open weights": [{"t": "TechCrunch: Hackers hit AI coding tool OpenCode, running up charges on users' AI accounts", "u": "https://techcrunch.com/2026/10/19/hackers-hit-ai-coding-tool-opencode-running-up-charges-on-users-ai-accounts/"}, {"t": "TechCrunch: Recursive launches Flint, a laptop coding model it says was largely built by AI", "u": "https://techcrunch.com/?p=3180324"}], "reasoning": [{"t": "VentureBeat: Google makes Gemini 4 Argon broadly available", "u": "https://venturebeat.com/technology/google-makes-gemini-4-argon-broadly-available-with-limited-time-low-api-pricing-of-2-10-per-1m-token"}, {"t": "VentureBeat: Deel launches Pangaea AI models for HR and payroll", "u": "https://venturebeat.com/technology/deel-launches-pangaea-ai-models-for-hr-and-payroll-betting-specialists-can-cut-the-cost-of-answers"}], "model weights": [{"t": "VentureBeat: DeepSeek-V4.1-Flash arrives as the U.S. bans it from agencies", "u": "https://venturebeat.com/security/deepseek-v4-1-flash-1017-arrives-with-improved-benchmarks-just-as-the-u-s-government-bans-it-from-agencies-what-enterprises-should-do"}, {"t": "VentureBeat: AWS makes it easier to fine-tune models in SageMaker", "u": "https://venturebeat.com/infrastructure/aws-just-made-it-way-easier-to-use-sagemaker-to-fine-tune-ai-models-for-tool-use-and-your-firms-specific-tasks"}], "tool calls": [{"t": "VentureBeat: AI agents can execute every tool call correctly and still break enterprise rules", "u": "https://venturebeat.com/orchestration/your-ai-agents-can-execute-every-tool-call-correctly-and-still-break-every-enterprise-rule"}, {"t": "VentureBeat: Researchers made AI agents better by turning academic papers into working code", "u": "https://venturebeat.com/orchestration/researchers-made-ai-agents-better-by-turning-academic-papers-into-working-code-no-retraining-required"}], "evals": [{"t": "AI Chief: Embedded AI evaluators are not a simple fix, says Hugging Face", "u": "https://aichief.com/news/embedded-ai-evaluators-are-not-a-simple-fix-says-hugging-face/"}, {"t": "VentureBeat: AWS makes it easier to fine-tune models in SageMaker", "u": "https://venturebeat.com/infrastructure/aws-just-made-it-way-easier-to-use-sagemaker-to-fine-tune-ai-models-for-tool-use-and-your-firms-specific-tasks"}], "parameters": [{"t": "TechCrunch: Recursive launches Flint, a laptop coding model it says was largely built by AI", "u": "https://techcrunch.com/?p=3180324"}, {"t": "VentureBeat: Deel launches Pangaea AI models for HR and payroll", "u": "https://venturebeat.com/technology/deel-launches-pangaea-ai-models-for-hr-and-payroll-betting-specialists-can-cut-the-cost-of-answers"}], "prompt caching": [{"t": "VentureBeat: Up to 60% of GPU compute goes to recomputing context", "u": "https://venturebeat.com/infrastructure/up-to-60-of-gpu-compute-goes-to-recomputing-context-flash-storage-can-put-that-capacity-back-to-work"}, {"t": "VentureBeat: DeepSeek-V4.1-Flash arrives as the U.S. bans it from agencies", "u": "https://venturebeat.com/security/deepseek-v4-1-flash-1017-arrives-with-improved-benchmarks-just-as-the-u-s-government-bans-it-from-agencies-what-enterprises-should-do"}], "harness": [{"t": "Martin Fowler: Are harnesses worth the cost?", "u": "https://martinfowler.com/articles/are-harnesses-worth-the-cost.html"}, {"t": "VentureBeat: Researchers made AI agents better by turning academic papers into working code", "u": "https://venturebeat.com/orchestration/researchers-made-ai-agents-better-by-turning-academic-papers-into-working-code-no-retraining-required"}], "fine-tuning": [{"t": "VentureBeat: AWS makes it easier to fine-tune models in SageMaker", "u": "https://venturebeat.com/infrastructure/aws-just-made-it-way-easier-to-use-sagemaker-to-fine-tune-ai-models-for-tool-use-and-your-firms-specific-tasks"}, {"t": "VentureBeat: DeepSeek-V4.1-Flash arrives as the U.S. bans it from agencies", "u": "https://venturebeat.com/security/deepseek-v4-1-flash-1017-arrives-with-improved-benchmarks-just-as-the-u-s-government-bans-it-from-agencies-what-enterprises-should-do"}]};
+var WORDS = [{"text": "agents", "count": 35}, {"text": "tokens", "count": 22}, {"text": "agentic", "count": 19}, {"text": "benchmarks", "count": 17}, {"text": "frontier models", "count": 16}, {"text": "inference", "count": 13}, {"text": "open weights", "count": 13}, {"text": "reasoning", "count": 11}, {"text": "evals", "count": 8}, {"text": "model weights", "count": 8}, {"text": "tool calls", "count": 8}, {"text": "parameters", "count": 7}, {"text": "prompt caching", "count": 7}, {"text": "harness", "count": 6}, {"text": "fine-tuning", "count": 6}];
+var field=document.getElementById('field'),tip=document.getElementById('tip'),pop=document.getElementById('pop'),wrap=document.getElementById('wrap');
+var TOTAL=39, reduce=false;
+var colors=['var(--w1)','var(--w2)','var(--w3)','var(--w4)','var(--w5)'];
+function layout(){
+  hide(); field.innerHTML=''; var W=field.clientWidth,H=field.clientHeight;
+  var max=WORDS[0].count, min=WORDS[WORDS.length-1].count;
+  var big=Math.min(W*0.2,118), small=Math.max(13,Math.min(W*0.028,18));
+  for(var attempt=0;attempt<14;attempt++){
+    field.innerHTML=''; var placed=[], ok=true, k=1-attempt*0.05;
+    for(var i=0;i<WORDS.length&&ok;i++){
+      var w=WORDS[i], t=(Math.sqrt(w.count)-Math.sqrt(min))/(Math.sqrt(max)-Math.sqrt(min));
+      var fs=(small+(big-small)*Math.pow(t,0.9))*k;
+      var el=document.createElement('span'); el.textContent=w.text; el.style.fontSize=fs+'px';
+      el.style.fontWeight=fs>56?300:400;
+      el.style.color=colors[Math.min(4,Math.floor(i/(WORDS.length/5)))];
+      el.style.setProperty('--dur',(6+((i*37)%50)/10)+'s'); el.style.setProperty('--del',(-((i*53)%70)/10)+'s');
+      el.style.animationDelay=(i*70)+'ms, var(--del)';
+      el.dataset.i=i; el.tabIndex=0; el.setAttribute('role','button'); field.appendChild(el);
+      var bw=el.offsetWidth+10, bh=el.offsetHeight+6, found=false;
+      for(var a=0;a<4000&&!found;a+=1){
+        var r=a*0.9, ang=a*0.35;
+        var x=W/2+r*Math.cos(ang)*1.7-bw/2, y=H/2+r*Math.sin(ang)*0.9-bh/2;
+        if(x<4||y<4||x+bw>W-4||y+bh>H-4){ if(r>Math.max(W,H)) break; continue; }
+        var hit=false;
+        for(var j=0;j<placed.length;j++){var p=placed[j];
+          if(x<p.x+p.w&&x+bw>p.x&&y<p.y+p.h&&y+bh>p.y){hit=true;break}}
+        if(!hit){found=true;placed.push({x:x,y:y,w:bw,h:bh});el.style.left=x+'px';el.style.top=y+'px'}
+      }
+      if(!found){ if(i<WORDS.length-4){ok=false} else {el.remove()} }
+    }
+    if(ok) break;
+  }
+}
+var pinned=false, hideT=null;
+function show(i,el){clearTimeout(hideT);var w=WORDS[i];pop.innerHTML='';
+  var b=document.createElement('b');b.textContent=w.text;pop.appendChild(b);
+  pop.appendChild(document.createTextNode(DEFS[w.text]));
+  var c=document.createElement('span');c.className='cnt';c.textContent='Used in '+w.count+' of '+TOTAL+' articles';pop.appendChild(c);
+  var d=document.createElement('span');d.className='lnk';d.textContent='Read more';
+  LINKS[w.text].forEach(function(l){var a=document.createElement('a');a.href=l.u;a.target='_blank';a.rel='noopener';a.textContent=l.t;d.appendChild(a)});pop.appendChild(d);
+  pop.hidden=false;
+  var W=wrap.clientWidth,pw=pop.offsetWidth,ph=pop.offsetHeight;
+  var x=Math.max(8,Math.min(el.offsetLeft+el.offsetWidth/2-pw/2,W-pw-8));
+  var below=el.offsetTop+el.offsetHeight;
+  var y=below+ph<=field.clientHeight+60?below:Math.max(0,el.offsetTop-ph);
+  pop.style.left=x+'px';pop.style.top=y+'px'}
+function hide(){pinned=false;pop.hidden=true}
+function later(){clearTimeout(hideT);if(!pinned)hideT=setTimeout(hide,350)}
+function spanOf(e){return e.target.closest&&e.target.closest('span[data-i]')}
+field.addEventListener('mouseover',function(e){var s=spanOf(e);if(s&&!pinned)show(+s.dataset.i,s)});
+field.addEventListener('mouseout',function(e){if(spanOf(e))later()});
+field.addEventListener('click',function(e){var s=spanOf(e);if(s){pinned=true;show(+s.dataset.i,s)}else hide()});
+field.addEventListener('focusin',function(e){var s=spanOf(e);if(s)show(+s.dataset.i,s)});
+field.addEventListener('keydown',function(e){var s=spanOf(e);if(s&&(e.key==='Enter'||e.key===' ')){e.preventDefault();pinned=true;show(+s.dataset.i,s)}if(e.key==='Escape')hide()});
+pop.addEventListener('mouseenter',function(){clearTimeout(hideT)});
+pop.addEventListener('mouseleave',later);
+document.addEventListener('click',function(e){if(!wrap.contains(e.target))hide()});
+var timer; window.addEventListener('resize',function(){clearTimeout(timer);timer=setTimeout(function(){layout();fxSize()},150)});
+
+/* Ambient scene: turning ring, orbiting nodes, drifting stars */
+var cv=document.getElementById('fx'),ctx=cv.getContext('2d'),cw=0,ch=0,stars=[],t0=performance.now(),C={};
+function readC(){var cs=getComputedStyle(document.documentElement);['glow-rgb','glow2-rgb','star-rgb','spark-rgb'].forEach(function(k){C[k]=cs.getPropertyValue('--'+k).trim()})}
+function fxSize(){var dpr=Math.min(window.devicePixelRatio||1,2);cw=wrap.clientWidth;ch=wrap.clientHeight;cv.width=cw*dpr;cv.height=ch*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  stars=[];var n=Math.round(cw*ch/3800);for(var i=0;i<n;i++){var d=Math.random();stars.push({x:Math.random()*cw,y:Math.random()*ch,r:.55+d*1.3,s:10+d*40,wa:2+d*7,wv:.3+Math.random()*.7,tw:.8+Math.random()*2.2,ph:Math.random()*6.28,spark:Math.random()<.07})}
+  readC();draw(performance.now())}
+function draw(now){
+  var t=reduce?0:(now-t0)/1000;ctx.clearRect(0,0,cw,ch);
+  stars.forEach(function(s){var x=(s.x+t*s.s)%cw,y=s.y+Math.sin(t*s.wv+s.ph)*s.wa,a=.4+.6*(.5+.5*Math.sin(t*s.tw+s.ph));
+    ctx.fillStyle='rgba('+(s.spark?C['spark-rgb']:C['star-rgb'])+','+(s.spark?a*.8:a*.75)+')';
+    if(s.spark){ctx.fillRect(x,y,s.r*3+s.s*.12,s.r*.9)}else{ctx.beginPath();ctx.arc(x,y,s.r,0,6.283);ctx.fill()}});
+  var cx=cw/2,cy=ch*.5,R=Math.min(cw,ch)*.37*(1+.012*Math.sin(t*.6));
+  var bg=ctx.createRadialGradient(cx,cy,R*.2,cx,cy,R*1.9);bg.addColorStop(0,'rgba('+C['glow-rgb']+',.20)');bg.addColorStop(1,'rgba('+C['glow-rgb']+',0)');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,cw,ch);
+  ctx.save();ctx.translate(cx,cy);
+  var ang=t*.14;
+  function ring(width,alpha,blur){
+    var g=ctx.createConicGradient?ctx.createConicGradient(ang,0,0):null;
+    if(g){g.addColorStop(0,'rgba('+C['glow2-rgb']+','+alpha+')');g.addColorStop(.28,'rgba('+C['glow-rgb']+','+alpha*.55+')');g.addColorStop(.55,'rgba('+C['glow-rgb']+','+alpha*.12+')');g.addColorStop(.8,'rgba('+C['glow-rgb']+','+alpha*.4+')');g.addColorStop(1,'rgba('+C['glow2-rgb']+','+alpha+')');ctx.strokeStyle=g}
+    else ctx.strokeStyle='rgba('+C['glow-rgb']+','+alpha*.6+')';
+    ctx.lineWidth=width;ctx.shadowColor='rgba('+C['glow-rgb']+',.9)';ctx.shadowBlur=blur;ctx.beginPath();ctx.arc(0,0,R,0,6.283);ctx.stroke()}
+  ring(34,.16,60);ring(12,.38,28);ring(2.4,.95,12);
+  ctx.shadowBlur=0;
+  for(var k=0;k<3;k++){var a=t*(.16+k*.04)+k*2.1,nx=Math.cos(a)*R,ny=Math.sin(a)*R;
+    ctx.fillStyle='rgba('+C['glow2-rgb']+',.95)';ctx.shadowColor='rgba('+C['glow2-rgb']+',1)';ctx.shadowBlur=14;ctx.beginPath();ctx.arc(nx,ny,3.2,0,6.283);ctx.fill();
+    ctx.shadowBlur=0;ctx.strokeStyle='rgba('+C['glow2-rgb']+',.35)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(nx,ny,9,0,6.283);ctx.stroke()}
+  ctx.restore();
+  if(!reduce&&!document.hidden)requestAnimationFrame(draw)}
+if(window.matchMedia){var mq=matchMedia('(prefers-color-scheme: dark)');(mq.addEventListener?mq.addEventListener.bind(mq,'change'):function(){})(function(){readC();if(reduce)draw(0)})}
+new MutationObserver(function(){readC();if(reduce)draw(0)}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&!reduce)requestAnimationFrame(draw)});
+
+(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){layout();fxSize()});
+</script>
+</body>
